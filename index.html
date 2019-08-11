@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app">
+      <div v-text="text1"></div>
+      <div>
+        <input type="text" v-model="text1" />
+      </div>
+      <div v-text="text2"></div>
+      <div>
+        <input type="text" v-model="text2" />
+      </div>
+    </div>
+    <script>
+      class Vue {
+        constructor(options) {
+          this.options = options;
+          this.$el = document.querySelector(this.options.el);
+          this.$data = this.options.data;
+          this._hub = {};
+          this.Observer(this.$data);
+          this.Compile(this.$el);
+        }
+        Observer(data) {
+          for (const key in data) {
+            if (data.hasOwnProperty(key)) {
+              this._hub[key] = [];
+              let value = data[key];
+              const watchList = this._hub[key];
+              Object.defineProperty(this.$data, key, {
+                get() {
+                  return value;
+                },
+                set(newValue) {
+                  value = newValue;
+                  watchList.forEach(item => {
+                    item.update();
+                  });
+                }
+              });
+            }
+          }
+        }
+        Compile(el) {
+          const nodes = el.children;
+          const nodesLength = nodes.length;
+          for (let i = 0; i < nodesLength; i++) {
+            const node = nodes[i];
+            if (node.children.length) {
+              this.Compile(node);
+            }
+            if (node.hasAttribute("v-text")) {
+              const key = node.getAttribute("v-text");
+              this._hub[key].push(
+                new Watcher({
+                  el: node,
+                  vm: this,
+                  key: key,
+                  attr: "innerHTML"
+                })
+              );
+            }
+            if (node.hasAttribute("v-model")) {
+              const key = node.getAttribute("v-model");
+              this._hub[key].push(
+                new Watcher({
+                  el: node,
+                  vm: this,
+                  key: key,
+                  attr: "value"
+                })
+              );
+              node.addEventListener("input", () => {
+                this.$data[key] = node.value;
+              });
+            }
+          }
+        }
+      }
+      class Watcher {
+        constructor(options) {
+          this.el = options.el;
+          this.vm = options.vm;
+          this.key = options.key;
+          this.attr = options.attr;
+          this.update();
+        }
+        update() {
+          this.el[this.attr] = this.vm.$data[this.key];
+        }
+      }
+    </script>
+    <script>
+      const app = new Vue({
+        el: "#app",
+        data: {
+          text1: "hello world",
+          text2: "hey jude"
+        }
+      });
+    </script>
+  </body>
+</html>
